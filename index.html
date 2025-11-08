@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stat Sniper v1.0</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-wrapper">
+        <header>
+            <h1>🎯 Stat Sniper v1.0</h1>
+            <h2 id="section-title">Section 1: Mean vs Median</h2>
+            <p id="round-progress">Round 1/10: Find <span id="objective">Mean</span></p>
+        </header>
+
+        <main>
+            <div id="chart-container">
+                <canvas id="game-canvas" width="800" height="400"></canvas>
+            </div>
+            <div id="feedback-container">
+                <div id="legend">
+                    <ul>
+                        <li><span class="color-box density"></span> Density</li>
+                        <li><span class="color-box data-points"></span> Data Points</li>
+                        <li><span class="color-box your-guess"></span> Your Guess</li>
+                        <li><span class="color-box actual-value"></span> Actual Value</li>
+                    </ul>
+                </div>
+                <p id="feedback-message"></p>
+            </div>
+        </main>
+
+        <footer>
+            <div class="score-container">
+                <p>Score: <span id="score">0</span></p>
+            </div>
+            <div class="controls-container">
+                <button id="hint-btn">💡 Get Hint (-50% pts)</button>
+                <button id="submit-btn">Next Round</button>
+            </div>
+        </footer>
+    </div>
+    <script src="datasets.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
