@@ -4,11 +4,12 @@ body {
     font-family: 'Inter', sans-serif;
     background-color: #f0f2f5;
     color: #333;
+    margin: 0;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    margin: 0;
+    padding: 30px 20px;
+    box-sizing: border-box;
 }
 
 #game-wrapper {
@@ -65,6 +66,7 @@ main {
     height: auto;
     background-color: #fff;
     cursor: crosshair;
+    touch-action: none;
 }
 
 #feedback-container {
@@ -80,6 +82,7 @@ main {
     margin: 0 0 15px;
     display: flex;
     gap: 20px;
+    flex-wrap: wrap;
 }
 
 #legend li {
@@ -159,3 +162,75 @@ button:disabled {
     color: #aaa;
     cursor: not-allowed;
 }
+
+@media (max-width: 900px) {
+    body {
+        padding: 20px 15px;
+    }
+
+    #game-wrapper {
+        padding: 24px;
+    }
+
+    header h1 {
+        font-size: 1.6em;
+    }
+
+    header h2 {
+        font-size: 1.4em;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 15px 10px;
+    }
+
+    #game-wrapper {
+        border-radius: 16px;
+        padding: 20px;
+    }
+
+    #legend ul {
+        gap: 12px;
+    }
+
+    footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .controls-container {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+@media (max-width: 420px) {
+    body {
+        padding: 10px;
+    }
+
+    #game-wrapper {
+        padding: 16px;
+    }
+
+    header h1 {
+        font-size: 1.4em;
+    }
+
+    header h2 {
+        font-size: 1.2em;
+    }
+
+    #feedback-message {
+        font-size: 1em;
+    }
+}
+

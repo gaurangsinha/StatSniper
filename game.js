@@ -2,8 +2,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM Element References
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
+    const chartContainer = document.getElementById('chart-container');
     const sectionTitleEl = document.getElementById('section-title');
     const roundProgressEl = document.getElementById('round-progress');
+    const roundNumberEl = document.getElementById('round-number');
     const objectiveEl = document.getElementById('objective');
     const scoreEl = document.getElementById('score');
     const hintBtn = document.getElementById('hint-btn');
@@ -21,8 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
         objectives: [],
         currentDataset: [],
         scatterPlotYJitter: [],
-        dragging: { isDragging: false, guessIndex: -1 },
-        mouse: { x: 0, y: 0 },
+        dragging: { isDragging: false, guessIndex: -1, pointerId: null },
+        mouse: { x: -100, y: -100 },
         submitted: false,
     };
 
@@ -41,6 +43,29 @@ document.addEventListener('DOMContentLoaded', () => {
         'P99': '#f44336',
     };
 
+    const padding = 50;
+    const getChartWidth = () => Math.max(10, canvas.width - 2 * padding);
+    const getChartHeight = () => Math.max(10, canvas.height - 2 * padding);
+
+    function resizeCanvas() {
+        const containerWidth = chartContainer.clientWidth || 320;
+        const targetWidth = containerWidth;
+        const targetHeight = Math.max(260, Math.min(520, targetWidth * 0.55));
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        canvas.style.height = `${targetHeight}px`;
+    }
+
+    window.addEventListener('resize', () => {
+        const previousWidth = canvas.width;
+        resizeCanvas();
+        if (canvas.width !== previousWidth) {
+            redrawCanvas();
+        } else {
+            redrawCanvas();
+        }
+    });
+
     // --- Statistical Functions ---
     const calculateMean = (data) => data.reduce((a, b) => a + b, 0) / data.length;
     const calculateMedian = (data) => {
@@ -53,43 +78,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const index = (percentile / 100) * (sorted.length - 1);
         if (Number.isInteger(index)) return sorted[index];
         const lower = Math.floor(index);
-        const upper = lower + 1;
+        const upper = Math.min(sorted.length - 1, lower + 1);
         return sorted[lower] * (upper - index) + sorted[upper] * (index - lower);
     };
 
-    // --- Drawing Functions ---
-    const padding = 50;
-    const chartWidth = canvas.width - 2 * padding;
-    const chartHeight = canvas.height - 2 * padding;
-
+    // --- Drawing Helpers ---
     function getScale(data) {
         const min = Math.min(...data);
         const max = Math.max(...data);
-        const range = max - min;
+        const range = max - min || 1;
         return { min, max, range };
     }
 
     function toCanvasX(value, scale) {
-        if (scale.range === 0) return padding + chartWidth / 2;
-        return padding + ((value - scale.min) / scale.range) * chartWidth;
+        const width = getChartWidth();
+        return padding + ((value - scale.min) / scale.range) * width;
     }
     
     function fromCanvasX(x, scale) {
-        return ((x - padding) / chartWidth) * scale.range + scale.min;
+        const width = getChartWidth();
+        const percent = (x - padding) / width;
+        const clampedPercent = Math.min(Math.max(percent, 0), 1);
+        return scale.min + clampedPercent * scale.range;
     }
 
     function drawHistogram(data, scale) {
+        const chartHeight = getChartHeight();
         const binCount = 20;
         const bins = new Array(binCount).fill(0);
         const binWidth = scale.range / binCount;
 
         data.forEach(value => {
             let binIndex = Math.floor((value - scale.min) / binWidth);
-            if (binIndex === binCount) binIndex--;
+            if (binIndex < 0) binIndex = 0;
+            if (binIndex >= binCount) binIndex = binCount - 1;
             bins[binIndex]++;
         });
 
-        const maxCount = Math.max(...bins);
+        const maxCount = Math.max(...bins) || 1;
         ctx.fillStyle = '#e0e0e0';
         bins.forEach((count, i) => {
             const binX = toCanvasX(scale.min + i * binWidth, scale);
@@ -100,10 +126,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawScatterPlot(data, scale) {
+        const jitterAmplitude = Math.min(40, getChartHeight() * 0.25);
+        const baseY = canvas.height - padding - Math.min(25, getChartHeight() * 0.15);
         ctx.fillStyle = '#546e7a';
         data.forEach((value, i) => {
             ctx.beginPath();
-            ctx.arc(toCanvasX(value, scale), canvas.height - padding - 25 + gameState.scatterPlotYJitter[i], 3, 0, 2 * Math.PI);
+            const jitter = (gameState.scatterPlotYJitter[i] || 0) * jitterAmplitude;
+            ctx.arc(toCanvasX(value, scale), baseY + jitter, 3, 0, 2 * Math.PI);
             ctx.fill();
         });
     }
@@ -116,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const max = Math.max(...data);
 
         const y = canvas.height - padding + 20;
-        const height = 25;
+        const height = Math.min(25, getChartHeight() * 0.2);
 
         ctx.strokeStyle = '#e67e22';
         ctx.lineWidth = 2;
@@ -164,12 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const objective = gameState.objectives[gameState.guesses.length];
             ctx.fillStyle = objectiveColors[objective];
             ctx.font = 'bold 12px Arial';
-            ctx.fillText(objective, gameState.mouse.x + 20, gameState.mouse.y - 20);
+            const labelX = Math.min(Math.max(gameState.mouse.x + 20, padding), canvas.width - padding);
+            const labelY = Math.max(gameState.mouse.y - 20, padding / 2);
+            ctx.fillText(objective, labelX, labelY);
         }
     }
 
     function redrawCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!gameState.currentDataset.length) return;
         const scale = getScale(gameState.currentDataset);
 
         drawHistogram(gameState.currentDataset, scale);
@@ -204,8 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        gameState.currentDataset = datasets[gameState.currentRound];
-        gameState.scatterPlotYJitter = gameState.currentDataset.map(() => (Math.random() - 0.5) * 40);
+        const datasetIndex = (gameState.currentSection * 10 + gameState.currentRound) % datasets.length;
+        gameState.currentDataset = datasets[datasetIndex];
+        gameState.scatterPlotYJitter = gameState.currentDataset.map(() => (Math.random() - 0.5));
         gameState.objectives = sections[gameState.currentSection].objectives;
         gameState.guesses = [];
         gameState.actuals = [];
@@ -226,17 +259,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (obj === 'Mean') value = calculateMean(gameState.currentDataset);
             else if (obj === 'Median') value = calculateMedian(gameState.currentDataset);
             else if (obj.startsWith('P')) {
-                const p = parseInt(obj.substring(1));
+                const p = parseInt(obj.substring(1), 10);
                 value = calculatePercentile(gameState.currentDataset, p);
             }
             return { objective: obj, value };
         });
     }
 
-    function handleMouseDown(event) {
-        if (gameState.submitted) return;
+    function getCanvasCoordinates(event) {
         const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
+        return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+        };
+    }
+
+    function handlePointerDown(event) {
+        if (gameState.submitted) return;
+        event.preventDefault();
+        const { x } = getCanvasCoordinates(event);
         const scale = getScale(gameState.currentDataset);
 
         for (let i = 0; i < gameState.guesses.length; i++) {
@@ -244,6 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Math.abs(x - guessX) < 10) {
                 gameState.dragging.isDragging = true;
                 gameState.dragging.guessIndex = i;
+                gameState.dragging.pointerId = event.pointerId;
+                canvas.setPointerCapture(event.pointerId);
                 canvas.style.cursor = 'grabbing';
                 return;
             }
@@ -261,23 +304,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleMouseMove(event) {
-        const rect = canvas.getBoundingClientRect();
-        gameState.mouse.x = event.clientX - rect.left;
-        gameState.mouse.y = event.clientY - rect.top;
+    function handlePointerMove(event) {
+        const coords = getCanvasCoordinates(event);
+        gameState.mouse.x = coords.x;
+        gameState.mouse.y = coords.y;
 
+        const scale = getScale(gameState.currentDataset);
         if (gameState.dragging.isDragging) {
-            const scale = getScale(gameState.currentDataset);
-            const newValue = fromCanvasX(gameState.mouse.x, scale);
+            const newValue = fromCanvasX(coords.x, scale);
             gameState.guesses[gameState.dragging.guessIndex].value = newValue;
         }
         
         let onGuessLine = false;
         if (!gameState.submitted) {
             for (let i = 0; i < gameState.guesses.length; i++) {
-                const scale = getScale(gameState.currentDataset);
                 const guessX = toCanvasX(gameState.guesses[i].value, scale);
-                if (Math.abs(gameState.mouse.x - guessX) < 10) {
+                if (Math.abs(coords.x - guessX) < 10) {
                     onGuessLine = true;
                     break;
                 }
@@ -288,9 +330,20 @@ document.addEventListener('DOMContentLoaded', () => {
         redrawCanvas();
     }
 
-    function handleMouseUp() {
-        gameState.dragging.isDragging = false;
-        gameState.dragging.guessIndex = -1;
+    function handlePointerUp(event) {
+        if (gameState.dragging.pointerId === event.pointerId) {
+            gameState.dragging.isDragging = false;
+            gameState.dragging.guessIndex = -1;
+            gameState.dragging.pointerId = null;
+            canvas.releasePointerCapture(event.pointerId);
+        }
+        canvas.style.cursor = 'crosshair';
+    }
+
+    function handlePointerLeave() {
+        gameState.mouse.x = -100;
+        gameState.mouse.y = -100;
+        redrawCanvas();
     }
 
     function showHint() {
@@ -339,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateHUD() {
         const section = sections[gameState.currentSection];
         sectionTitleEl.textContent = section.title;
-        roundProgressEl.textContent = `Round ${gameState.currentRound + 1}/10: Find`;
+        roundNumberEl.textContent = `${gameState.currentRound + 1}/10`;
         scoreEl.textContent = gameState.score;
 
         if (!gameState.submitted) {
@@ -354,14 +407,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function init() {
+        resizeCanvas();
         startRound();
-        canvas.addEventListener('mousedown', handleMouseDown);
-        canvas.addEventListener('mousemove', handleMouseMove);
-        canvas.addEventListener('mouseup', handleMouseUp);
-        canvas.addEventListener('mouseout', () => {
-            gameState.mouse.x = -100;
-            redrawCanvas();
-        });
+        canvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
+        canvas.addEventListener('pointermove', handlePointerMove);
+        canvas.addEventListener('pointerup', handlePointerUp);
+        canvas.addEventListener('pointercancel', handlePointerUp);
+        canvas.addEventListener('pointerleave', handlePointerLeave);
         hintBtn.addEventListener('click', showHint);
         submitBtn.addEventListener('click', submitGuess);
     }
