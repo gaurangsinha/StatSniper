@@ -2,32 +2,81 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stat Sniper v1.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Stat Sniper v2.0 — Sharpen Your Stats Intuition</title>
+    <meta name="description" content="An interactive statistics game where you guess the mean, median, percentiles, and standard deviation from data visualizations.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <!-- ─── Onboarding Overlay ───────────────────────────────────────── -->
+    <div id="onboarding-overlay" class="overlay hidden">
+        <div class="overlay-card">
+            <h2>🎯 Welcome to Stat Sniper</h2>
+            <div class="onboarding-steps">
+                <div class="onboarding-step">
+                    <span class="step-icon">👆</span>
+                    <p><strong>Tap the chart</strong> where you think the statistic lives.</p>
+                </div>
+                <div class="onboarding-step">
+                    <span class="step-icon">↔️</span>
+                    <p><strong>Drag to adjust</strong> your guess line.</p>
+                </div>
+                <div class="onboarding-step">
+                    <span class="step-icon">✅</span>
+                    <p>Hit <strong>Submit</strong> and see how close you got!</p>
+                </div>
+            </div>
+            <button id="onboarding-start-btn" class="btn-primary">Let's Go!</button>
+        </div>
+    </div>
+
+    <!-- ─── Game Over Overlay ────────────────────────────────────────── -->
+    <div id="gameover-overlay" class="overlay hidden">
+        <div class="overlay-card">
+            <h2>🏁 Game Over</h2>
+            <div id="gameover-stars" class="star-display"></div>
+            <p class="gameover-score">Final Score: <span id="gameover-score-value">0</span></p>
+            <div id="gameover-breakdown"></div>
+            <button id="gameover-restart-btn" class="btn-primary">Play Again</button>
+        </div>
+    </div>
+
+    <!-- ─── Main Game ────────────────────────────────────────────────── -->
     <div id="game-wrapper">
         <header>
-            <h1>🎯 Stat Sniper v1.0</h1>
+            <h1>🎯 Stat Sniper <span class="version-tag">v2.0</span></h1>
+            <div id="progress-bar-container">
+                <div id="progress-bar-fill"></div>
+            </div>
             <h2 id="section-title">Section 1: Mean vs Median</h2>
-            <p id="round-progress">Round <span id="round-number">1/10</span>: Find <span id="objective">Mean</span></p>
+            <p id="round-progress">Round <span id="round-number">1/5</span>: Find <span id="objective">Mean</span></p>
         </header>
 
         <main>
+            <p id="dataset-label" class="dataset-label">☕ Loading dataset…</p>
+
             <div id="chart-container">
-                <canvas id="game-canvas" width="800" height="400"></canvas>
+                <canvas id="game-canvas"></canvas>
             </div>
+
+            <div id="combo-indicator" class="combo-indicator hidden">🔥 <span id="combo-count">0</span>x Streak!</div>
+
             <div id="feedback-container">
                 <div id="legend">
                     <ul>
-                        <li><span class="color-box density"></span> Density</li>
-                        <li><span class="color-box data-points"></span> Data Points</li>
-                        <li><span class="color-box your-guess"></span> Your Guess</li>
-                        <li><span class="color-box actual-value"></span> Actual Value</li>
+                        <li><span class="color-box density"></span>Density</li>
+                        <li><span class="color-box data-points"></span>Data Points</li>
+                        <li><span class="color-box your-guess"></span>Your Guess</li>
+                        <li><span class="color-box actual-value"></span>Actual Value</li>
                     </ul>
                 </div>
+                <div id="round-stars" class="star-display hidden"></div>
                 <p id="feedback-message"></p>
+                <p id="edu-tip" class="edu-tip hidden"></p>
             </div>
         </main>
 
@@ -36,11 +85,12 @@
                 <p>Score: <span id="score">0</span></p>
             </div>
             <div class="controls-container">
-                <button id="hint-btn">💡 Get Hint (-50% pts)</button>
-                <button id="submit-btn">Submit Guess</button>
+                <button id="hint-btn" class="btn-secondary">💡 Hint <span class="hint-cost">−50%</span></button>
+                <button id="submit-btn" class="btn-primary" disabled>Submit Guess</button>
             </div>
         </footer>
     </div>
+
     <script src="datasets.js"></script>
     <script src="game.js"></script>
 </body>
